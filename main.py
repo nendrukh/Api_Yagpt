@@ -1,4 +1,6 @@
+import logging.config
 from config import API_KEY, API_URL, FOLDER_ID
+from logging_config import dict_config
 from pydantic import BaseModel
 from typing import Annotated
 
@@ -6,6 +8,8 @@ import requests
 from requests import Response
 from fastapi import FastAPI, Body
 
+logging.config.dictConfig(dict_config)
+api_logger = logging.getLogger("api_logger")
 app = FastAPI()
 
 
@@ -23,6 +27,7 @@ class Result(BaseModel):
 async def ask_gpt(body_items: GptItems):
     prompt: str = body_items.prompt
     gpt_role: str = body_items.gpt_role
+    api_logger.debug(f"prompt: {prompt}, gpt role: {gpt_role}")
 
     headers = {
         'Authorization': API_KEY,
@@ -53,8 +58,10 @@ async def ask_gpt(body_items: GptItems):
         try:
             response_txt: str = response["result"]["alternatives"][0]["message"]["text"]
         except TypeError:
+            api_logger.error(f"TypeError. Response: {response}")
             return {"code": "TypeError"}
         else:
             return {"result": response_txt, "code": "OK"}
 
+    api_logger.error(f"Status code != 200. Response: {response.json()}")
     return {"code": "ERROR"}
